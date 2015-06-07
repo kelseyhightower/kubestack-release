@@ -1,0 +1,61 @@
+#!/bin/bash
+
+if [ -z "${1}" ]; then
+  echo "Error: kubestack release file required"
+  echo "Usage: $0 kubestack-versions"
+  exit 1
+fi
+
+. ${1}
+
+rm -rf output
+mkdir output
+
+wget -N https://github.com/GoogleCloudPlatform/kubernetes/releases/download/v${KUBESTACK_KUBERNETES_VERSION}/kubernetes.tar.gz
+wget -N https://github.com/coreos/flannel/releases/download/v${KUBESTACK_FLANNEL_VERSION}/flannel-${KUBESTACK_FLANNEL_VERSION}-linux-amd64.tar.gz
+wget -N https://github.com/coreos/etcd/releases/download/v${KUBESTACK_ETCD_VERSION}/etcd-v${KUBESTACK_ETCD_VERSION}-linux-amd64.tar.gz
+wget -N https://get.docker.com/builds/Linux/x86_64/docker-${KUBESTACK_DOCKER_VERSION}
+
+# docker
+cp docker-${KUBESTACK_DOCKER_VERSION} output/docker
+chmod +x output/docker
+
+# etcd
+tar -xf etcd-v${KUBESTACK_ETCD_VERSION}-linux-amd64.tar.gz
+cp etcd-v${KUBESTACK_ETCD_VERSION}-linux-amd64/etcd output/etcd
+cp etcd-v${KUBESTACK_ETCD_VERSION}-linux-amd64/etcdctl output/etcdctl
+chmod +x output/{etcd,etcdctl}
+
+# flannel
+tar -xf flannel-${KUBESTACK_FLANNEL_VERSION}-linux-amd64.tar.gz
+cp flannel-${KUBESTACK_FLANNEL_VERSION}/flanneld output/flanneld
+chmod +x output/flanneld
+
+# kubernetes
+tar -xf kubernetes.tar.gz
+tar -xvf kubernetes/server/kubernetes-server-linux-amd64.tar.gz
+cp kubernetes/server/bin/hyperkube output/hyperkube
+cp kubernetes/server/bin/kube-apiserver output/kube-apiserver
+cp kubernetes/server/bin/kube-controller-manager output/kube-controller-manager
+cp kubernetes/server/bin/kube-proxy output/kube-proxy
+cp kubernetes/server/bin/kube-scheduler output/kube-scheduler
+cp kubernetes/server/bin/kubectl output/kubectl
+cp kubernetes/server/bin/kubelet output/kubelet
+chmod +x output/{hyperkube,kube-apiserver,kube-controller-manager,kube-proxy,kube-scheduler,kubectl,kubelet}
+
+cd output/ && shasum -a 256 * > CHECKSUM
+
+echo "docker ${KUBESTACK_DOCKER_VERSION}" > VERSION
+echo "etcd ${KUBESTACK_ETCD_VERSION}" >> VERSION
+echo "flannel ${KUBESTACK_FLANNEL_VERSION}" >> VERSION
+echo "kubernetes ${KUBESTACK_KUBERNETES_VERSION}" >> VERSION
+
+tar -cvzf kubestack-${KUBESTACK_VERSION}.tar.gz *
+mv kubestack-${KUBESTACK_VERSION}.tar.gz ../
+
+cd ../
+
+rm -rf docker*
+rm -rf etcd*
+rm -rf flannel*
+rm -rf kubernetes*
